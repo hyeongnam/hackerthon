@@ -10,8 +10,8 @@ api_url = f'https://api.telegram.org/bot{token}'
 
 # 구글뉴스 검색어 속보, 최근 2시간 이내 기사
 def news(text, chat_id):
-    # text = '속보'
-    hour = 1  # 최근 x시간 이내
+    text = '속보'
+    hour = 3  # 최근 x시간 이내
     url = f'https://news.google.com/search?q={text}%20when%3A{hour}h&hl=ko&gl=KR&ceid=KR%3Ako'
     request = requests.get(url).text
     soup = BeautifulSoup(request, 'html.parser')
@@ -39,6 +39,6 @@ def news(text, chat_id):
         news_time.append(date)
 
     # for i in range(len(news_url)):
-    for i in range(3):  # 일단 3개만 테스트
+    for i in range(5):  # 일단 3개만 테스트
         msg = news_title[i] + ' [' + news_time[i] + ']\n' + news_url[i]
         requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
