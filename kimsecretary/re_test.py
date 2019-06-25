@@ -30,7 +30,7 @@ reg_order['tempid'] = 2
 
 # bus = bus_list[1]
 # print(routeid_list[2-1])
-print('tempid=',reg_order.get('tempid')==2)
+print('tempid=', reg_order.get('tempid') == 2)
 del reg_order['tempid']
 print('1', reg_order)
 reg_order['test'] = 3
@@ -95,7 +95,7 @@ if input_text[-5:] != '등록':
 
 station_include = []
 # print(station_include)
-input_text = '양재'
+input_text = '듣도보도 못한 이름'
 routeid = '200000110'
 # if reg_order.get(chat_id) == 3 and save_input != input_text:
 url = f'http://openapi.gbis.go.kr/ws/rest/busrouteservice/station?serviceKey=p7RiOnONfT8hc4MMVfKU8%2BSr2pQ8vwgM3JQA0sap60em7nJZW5QpGUrGcDmQy4nqe%2B1YxAOAwL7F1uRrlk8PkQ%3D%3D&routeId={routeid}'
@@ -106,7 +106,6 @@ station_list = soup.find('msgbody')
 index = 0
 station_list = list(station_list)
 for idx, station in enumerate(station_list):
-    print('idx=', idx, 'station=', station)
     if input_text in station.find('stationname').contents[0]:
         if idx <= len(station_list):
             station_include.append([])
@@ -115,15 +114,29 @@ for idx, station in enumerate(station_list):
             station_include[index].append(station_list[idx + 1].find('stationname').contents[0])
             station_include[index].append(station.find('stationseq').contents[0])
         index += 1
+a = None
+b = 'test'
+if not station_include:
+    msg = '입력한 단어가 포함된 정류장이 없습니다.'
+    print(a == b, a != b)
+    print(msg)
 
-msg = '탑승 정류장을 선택하세요.\n' \
-                  '     탑승 정류장  ->  다음 정류장 (운행방향)'
-for idx, station in enumerate(station_include):
-    msg += f'\n{idx+1}. {station[1]}  ->  {station[2]}'
-print(msg)
+else:
+    msg = '탑승 정류장을 선택하세요.\n' \
+          '     탑승 정류장  ->  다음 정류장 (운행방향)'
+    for idx, station in enumerate(station_include):
+        msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
+    print(msg)
 
+test = '2'
+print(re.findall('\d+', test)[0])
+print(type(re.findall('\d+', test)[0]))
+
+print(station_include[2 - 1])
+bus_stop = int(re.findall('\d+', test)[0]) - 1
+station_id = station_include[bus_stop][0]
+print(station_id)
 # msg = '탑승 정류장을 선택하세요.\n' \
 #       '     탑승 정류장  ->  다음 정류장 (운행방향)'
 # for idx, station in enumerate(station_include):
 #     msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
-
