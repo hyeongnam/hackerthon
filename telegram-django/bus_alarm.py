@@ -18,6 +18,10 @@ chat_id = sys.argv[1]
 minute = sys.argv[2]
 direction = sys.argv[3]
 
+station_id = ''
+route_id = ''
+station_order= ''
+
 # minute = sys.argv[2]
 # chat_id = context['chat_id']
 if direction == 'go':
@@ -26,7 +30,6 @@ if direction == 'go':
         msg = '출근 버스를 등록하세요.\n' \
               'ex) 출근 버스 등록'
         requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
-
     else:
         station_id = busgo.go_station_id
         route_id = busgo.go_route_id
@@ -40,9 +43,9 @@ else:  # direction == 'out'
         requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
 
     else:
-        station_id = busout.go_station_id
-        route_id = busout.go_route_id
-        station_order = busout.go_station_order
+        station_id = busout.out_station_id
+        route_id = busout.out_route_id
+        station_order = busout.out_station_order
 
 if station_id is not None:
     # url = 'http://openapi.gbis.go.kr/ws/rest/busarrivalservice?serviceKey=p7RiOnONfT8hc4MMVfKU8%2BSr2pQ8vwgM3JQA0sap60em7nJZW5QpGUrGcDmQy4nqe%2B1YxAOAwL7F1uRrlk8PkQ%3D%3D&stationId=121000921&routeId=200000110&staOrder=39'
@@ -59,11 +62,10 @@ if station_id is not None:
     location2 = soup.find('locationno2').contents[0]
     seat2 = soup.find('remainseatcnt2').contents[0]
 
-
     if int(predict1) <= int(minute):
         msg = f'직전 버스 {predict1}분 ({location1}정류장) [{seat1}좌석]\n' \
             f'다음 버스 {predict2}분 ({location2}정류장) [{seat2}좌석]\n' \
-            f'1분 간격으로 알려드리며 종료, 정지 등으로 종료할 수 있습니다.'
+            f'1분마다 갱신, 종료 등을 입력하면 종료합니다.'
         requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
 
     else:

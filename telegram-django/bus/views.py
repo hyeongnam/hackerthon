@@ -19,13 +19,16 @@ token = config('TOKEN')
 api_url = f'https://api.telegram.org/bot{token}'
 
 reg_order = {}
-routeid_list = []
+routeid_list = {}
 save_input = {}
 bus_len = {}
 routeid = {}
-station_include = []
+station_include = {}
 user_msg = {}
-
+station_list = {}
+bus_list = {}
+bus_number = {}
+go_or_out = {}
 
 
 @require_POST
@@ -36,21 +39,22 @@ def tel(request):
     global reg_order
     global routeid_list
     global save_input
+    global bus_len
     global routeid
     global station_include
     global user_msg
-    global bus_len
+    global bus_list
+    global station_list
+    global bus_number
+    global go_or_out
 
     message = json.loads(request.body).get('message')
-    chat_id = message.get('from').get('id')
-    user_msg[chat_id] = message.get('text')
+
+    # user_msg[chat_id] = message.get('text')
     # if message is not None:
-    print('user_msg=', user_msg.get(chat_id))
-    if user_msg.get(chat_id) is not None:
-        # chat_id = message.get('from').get('id')  # 명시적으로 나타내기위해 get 사용 추천
-        # input_text = message.get('text')
-        # user_msg[chat_id] = input_text
-        # text = input_text.split(' ')
+    if message is not None:
+        chat_id = message.get('from').get('id')
+        user_msg[chat_id] = message.get('text')
         print('0 order=', reg_order.get(chat_id), 'save=', save_input.get(chat_id))
 
         if user_msg.get(chat_id)[-2:] in ['종료', '중지', '정지', '그만', '멈춰', ]:
@@ -62,7 +66,7 @@ def tel(request):
             # msg = '버스 알림을 종료합니다.'
             # requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
 
-        elif user_msg.get(chat_id)[-2:] == '등록' and reg_order.get(chat_id) is None:
+        elif user_msg.get(chat_id)[-2:] == '등록':
             if reg_order.get(chat_id) is not None:
                 del reg_order[chat_id]
             if user_msg.get(chat_id)[:2] == '출근':  # 등록을 입력 후 처음 메세지
@@ -70,7 +74,14 @@ def tel(request):
 
                 reg_order[chat_id] = 1  # 등록 1단계 버스 번호 입력 받기
                 save_input[chat_id] = user_msg.get(chat_id)
+                go_or_out[chat_id] = 'go'
+                print('1 order=', reg_order.get(chat_id), 'save=', save_input.get(chat_id))
+            elif user_msg.get(chat_id)[:2] == '퇴근':
+                send_msg(chat_id, '버스 번호를 입력하세요 ex) 88-1, 88-1번')
 
+                reg_order[chat_id] = 1  # 등록 1단계 버스 번호 입력 받기
+                save_input[chat_id] = user_msg.get(chat_id)
+                go_or_out[chat_id] = 'out'
                 print('1 order=', reg_order.get(chat_id), 'save=', save_input.get(chat_id))
 
             # elif input_text[:2] == '퇴근':
@@ -79,23 +90,23 @@ def tel(request):
             #     reg_order[chat_id] = 1  # 등록 1단계 버스 번호 입력 받기
         elif reg_order.get(chat_id) == 1 and save_input.get(chat_id) != user_msg.get(chat_id):  # 버스 번호 입력 받은 후 버스 선택
             # bus_number = re.findall('\d+-?\d+', input_text)[0]
-            number = re.findall('\d+-?\d+', user_msg.get(chat_id))  # 메세지에서 숫자 또는 숫자-숫자만 추출
-            if not number:
-                number = re.findall('\d+', user_msg.get(chat_id))
-            if not number:
+            bus_number[chat_id] = re.findall('\d+-?\d+', user_msg.get(chat_id))  # 메세지에서 숫자 또는 숫자-숫자만 추출
+            if not bus_number.get(chat_id):
+                bus_number[chat_id] = re.findall('\d+', user_msg.get(chat_id))
+            if not bus_number.get(chat_id):
                 msg = '숫자를 포함해서 입력해주세요.\n' \
                       '버스 번호를 입력하세요 ex) 88-1, 88-1번'
                 send_msg(chat_id, msg)
 
             else:
-                bus_number = number[0]
+                bus_number[chat_id] = bus_number[chat_id][0]
                 print('입력받은 버스넘버:', bus_number)
-                url = f'http://openapi.gbis.go.kr/ws/rest/busrouteservice?serviceKey=p7RiOnONfT8hc4MMVfKU8%2BSr2pQ8vwgM3JQA0sap60em7nJZW5QpGUrGcDmQy4nqe%2B1YxAOAwL7F1uRrlk8PkQ%3D%3D&keyword={bus_number}'
+                url = f'http://openapi.gbis.go.kr/ws/rest/busrouteservice?serviceKey=p7RiOnONfT8hc4MMVfKU8%2BSr2pQ8vwgM3JQA0sap60em7nJZW5QpGUrGcDmQy4nqe%2B1YxAOAwL7F1uRrlk8PkQ%3D%3D&keyword={bus_number.get(chat_id)}'
                 url_result = requests.get(url).text
                 soup = BS(url_result, 'html.parser')
-                bus_list = soup.find('msgbody')
+                bus_list[chat_id] = soup.find('msgbody')
 
-                if not bus_list:
+                if not bus_list.get(chat_id):
                     msg = '해당하는 버스가 없습니다.\n' \
                           '경기도를 경유하는 버스만 가능합니다.\n' \
                           '버스 번호를 입력하세요 ex) 88-1, 88-1번'
@@ -104,12 +115,13 @@ def tel(request):
                 else:
                     msg = '버스를 선택하세요. ex) 1, 1번'
                     # requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
-                    for idx, bus in enumerate(bus_list):
+                    routeid_list[chat_id] = []
+                    for idx, bus in enumerate(bus_list.get(chat_id)):
                         msg += f'\n{idx + 1}. 지역: {bus.find("regionname").contents[0]} / 번호: {bus.find("routename").contents[0]}'
-                        routeid_list.append(bus.find('routeid').contents[0])
+                        routeid_list[chat_id].append(bus.find('routeid').contents[0])
                     send_msg(chat_id, msg)
-                    bus_len[chat_id] = len(bus_list)
-
+                    bus_len[chat_id] = len(bus_list.get(chat_id))
+                    print('route_list=', routeid_list)
                     reg_order[chat_id] = 2
                     save_input[chat_id] = user_msg.get(chat_id)
                     print('2 order=', reg_order.get(chat_id), 'save=', save_input.get(chat_id), 'user_msg=',
@@ -117,9 +129,9 @@ def tel(request):
 
         elif reg_order.get(chat_id) == 2 and save_input.get(chat_id) != user_msg.get(chat_id):  # 버스 선택 후 탑승지 입력 받기
             # idx = int(re.findall('\d+', input_text)[0])
-            idx = int(re.findall('\d+', user_msg.get(chat_id))[0])
+            idx = int(re.findall('\d+', user_msg.get(chat_id))[0])-1
             if idx < bus_len.get(chat_id):
-                routeid[chat_id] = routeid_list[idx - 1]
+                routeid[chat_id] = routeid_list.get(chat_id)[idx]
                 msg = '탑승 정류장이 포함된 단어를 입력하세요. \n ' \
                       'ex)시민의숲.양재꽃시장 -> 시민의숲, 양재, 꽃시장'
                 send_msg(chat_id, msg)
@@ -128,29 +140,32 @@ def tel(request):
                 save_input[chat_id] = user_msg.get(chat_id)
                 print('3 order=', reg_order.get(chat_id), 'save=', save_input, 'user_msg=', user_msg.get(chat_id))
             else:
-                msg = f'1~{len(routeid_list)}의 번호를 입력하세요'
+                msg = f'1~{len(routeid_list[chat_id])}의 번호를 입력하세요'
                 send_msg(chat_id, msg)
 
         elif reg_order.get(chat_id) == 3 and save_input.get(chat_id) != user_msg.get(chat_id):  # 입력받은 탑승지로 정류장 검색
             url = f'http://openapi.gbis.go.kr/ws/rest/busrouteservice/station?serviceKey=p7RiOnONfT8hc4MMVfKU8%2BSr2pQ8vwgM3JQA0sap60em7nJZW5QpGUrGcDmQy4nqe%2B1YxAOAwL7F1uRrlk8PkQ%3D%3D&routeId={routeid.get(chat_id)}'
             url_result = requests.get(url).text
             soup = BS(url_result, 'html.parser')
-            station_list = soup.find('msgbody')
+
+            stations = soup.find('msgbody') ##
+            station_list[chat_id] = list(stations)
 
             index = 0
-            station_list = list(station_list)
-
-            for idx, station in enumerate(station_list):  # 정류장리스트에서 입력받은 단어가 포함된 정류장 찾기
+            # station_list = list(station_list)
+            station_include[chat_id] = []
+            for idx, station in enumerate(station_list.get(chat_id)):  # 정류장리스트에서 입력받은 단어가 포함된 정류장 찾기 ##
                 if user_msg.get(chat_id) in station.find('stationname').contents[0]:
-                    if idx < len(station_list) - 1:
-                        station_include.append([])
-                        station_include[index].append(station.find('stationid').contents[0])
-                        station_include[index].append(station.find('stationname').contents[0])
-                        station_include[index].append(station_list[idx + 1].find('stationname').contents[0])
-                        station_include[index].append(station.find('stationseq').contents[0])
+                    if idx < len(station_list.get(chat_id)) - 1:
+                        station_include[chat_id].append([])
+                        station_include[chat_id][index].append(station.find('stationid').contents[0])
+                        station_include[chat_id][index].append(station.find('stationname').contents[0])
+                        station_include[chat_id][index].append(station_list.get(chat_id)[idx + 1].find('stationname').contents[0])
+                        station_include[chat_id][index].append(station.find('stationseq').contents[0])
                     index += 1
-                    
-            if not station_include: # 일치하는 정류장이 하나도 없는 경우
+            print(station_include[chat_id])
+
+            if not station_include.get(chat_id):  # 일치하는 정류장이 하나도 없는 경우
                 msg = '입력한 단어가 포함된 정류장이 없습니다.\n' \
                       '탑승 정류장이 포함된 단어를 입력하세요. \n ' \
                       'ex)시민의숲.양재꽃시장 -> 시민의숲, 양재, 꽃시장'
@@ -162,9 +177,9 @@ def tel(request):
             else:
                 msg = '탑승 정류장을 선택하세요. ex) 2, 2번\n' \
                       '     탑승 정류장  ->  다음 정류장 (운행방향)'
-                for idx, station in enumerate(station_include):
-                    if idx < len(station_include):
-                        msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
+                for idx, station in enumerate(station_include.get(chat_id)):
+                    # if idx < len(station_include.get(chat_id)):
+                    msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
                 send_msg(chat_id, msg)
                 reg_order[chat_id] = 4
                 save_input[chat_id] = user_msg.get(chat_id)
@@ -174,51 +189,108 @@ def tel(request):
         elif reg_order.get(chat_id) == 4 and save_input.get(chat_id) != user_msg.get(chat_id):
             # bus_stop = int(re.findall('\d+', input_text)[0])-1  # 1부터 출력했으므로 -1
             bus_stop = int(re.findall('\d+', user_msg.get(chat_id))[0]) - 1  # 1부터 출력했으므로 -1
-            if bus_stop < len(station_include):
+            if bus_stop < len(station_include.get(chat_id)):
                 # go_station_id = station_include[bus_stop][0]
                 # go_route_id = routeid
                 # go_station_order = station_include[bus_stop][3]
                 # print(go_station_id, go_route_id, go_station_order)
-                busgo = BusGo()
-                busgo.chat_id = chat_id
-                busgo.go_station_id = station_include[bus_stop][0]
-                busgo.go_route_id = routeid.get(chat_id)
-                busgo.go_station_order = station_include[bus_stop][3]
-                busgo.save()
+                if go_or_out.get(chat_id) == 'go':
+                    busgo = BusGo()
+                    busgo.chat_id = chat_id
+                    busgo.go_bus_number = bus_number.get(chat_id)
+                    busgo.go_station_id = station_include.get(chat_id)[bus_stop][0]
+                    busgo.go_route_id = routeid.get(chat_id)
+                    busgo.go_station_order = station_include.get(chat_id)[bus_stop][3]
+                    busgo.save()
                 # DB insert문 추가하기
-                # bus_go_input(chat_id, go_station_id, go_route_id, go_station_order)
+                elif go_or_out.get(chat_id) == 'out':
+                    busout = BusOut()
+                    busout.chat_id = chat_id
+                    busout.out_bus_number = bus_number.get(chat_id)
+                    busout.out_station_id = station_include.get(chat_id)[bus_stop][0]
+                    busout.out_route_id = routeid.get(chat_id)
+                    busout.out_station_order = station_include.get(chat_id)[bus_stop][3]
+                    busout.save()
                 send_msg(chat_id, '등록이 완료 되었습니다.')
-                del reg_order[chat_id]
+
+                if reg_order.get(chat_id):
+                    del reg_order[chat_id]
+                    print('del 1')
+                if routeid_list.get(chat_id):
+                    del routeid_list[chat_id]
+                    print('del 2')
+                if save_input.get(chat_id):
+                    del save_input[chat_id]
+                    print('del 3')
+                if bus_len.get(chat_id):
+                    del bus_len[chat_id]
+                    print('del 4')
+                if routeid.get(chat_id):
+                    del routeid[chat_id]
+                    print('del 5')
+                if station_include.get(chat_id):
+                    del station_include[chat_id]
+                    print('del 6')
+                if user_msg.get(chat_id):
+                    del user_msg[chat_id]
+                    print('del 7')
+                if station_list.get(chat_id):
+                    del station_list[chat_id]
+                    print('del 8')
+                if bus_list.get(chat_id):
+                    del bus_list[chat_id]
+                    print('del 9')
+                if bus_number.get(chat_id):
+                    del bus_number[chat_id]
+                    print('del 10')
 
             else:
                 msg = f'1~{len(station_include)}의 번호를 입력하세요'
                 send_msg(chat_id, msg)
                 save_input[chat_id] = None
 
-            print('5 order=', reg_order.get(chat_id), 'save=', save_input)
-
         elif user_msg.get(chat_id)[:2] == '출근':
-            print('@@@@@@@@@@@test1')
             if user_msg.get(chat_id)[-2:] != '등록':
-                print('@@@@@@@@@@@test2')
                 minute = re.findall('\d+', user_msg.get(chat_id))
-                print('@@@@@@@@@@@test3 minute',minute)
                 if not minute:
-                    print('@@@@@@@@@@@pass')
                     pass
                 else:
-                    print('@@@@@@@@@@@else')
-
-                    user = f'sudo useradd -d /home/ec2-user -u 500 -o {chat_id}'  # ec2-user 와 같은 uid 를 갖도록 계정 생성
-
-                    # 크론탭 시간 1분은 좀 긴거 같고 30초 간격으로 수정해야할듯..
-                    cron = f'(crontab -l 2>/dev/null; echo "*/1 * * * * python3 /home/ec2-user/telegram-django/bus_alarm.py {chat_id} {minute[0]} go") | sudo crontab -u {chat_id} -'
-                    print(cron)
-                    # cron = f'(crontab -l 2>/dev/null; echo "*/{minute} * * * * python3 ~/kim/bus_alarm.py {chat_id} {text[0]}") | crontab -'
-                    os.system(user)
-                    os.system(cron)
-                    msg = f'출근 버스 도착 {minute[0]}분 전 알림\n' \
-                        f'종료, 정지 등으로 종료할 수 있습니다.'
-                    requests.get(api_url + f'/sendMessage?chat_id={chat_id}&text={msg}')
+                    busgo = BusGo.objects.filter(chat_id=chat_id).last()
+                    if not busgo:
+                        msg = '출근 버스를 등록하세요.\n' \
+                            'ex) 출근 버스 등록'
+                        send_msg(chat_id, msg)
+                    else:
+                        user = f'sudo useradd -d /home/ec2-user -u 500 -o {chat_id}'  # ec2-user 와 같은 uid 를 갖도록 계정 생성
+                        # 크론탭 시간 1분은 좀 긴거 같고 30초 간격으로 수정해야할듯..
+                        cron = f'(crontab -l 2>/dev/null; echo "*/1 * * * * python3 /home/ec2-user/telegram-django/bus_alarm.py {chat_id} {minute[0]} go") | sudo crontab -u {chat_id} -'
+                        os.system(user)
+                        os.system(cron)
+                        msg = f'출근버스 ({busgo.go_bus_number}) 도착 {minute[0]}분 전 알림\n'\
+                            f'종료, 정지 등을 입력하면 종료합니다.'
+                        send_msg(chat_id,msg)
                     print('end')
+                    
+        elif user_msg.get(chat_id)[:2] == '퇴근':
+            if user_msg.get(chat_id)[-2:] != '등록':
+                minute = re.findall('\d+', user_msg.get(chat_id))
+                if not minute:
+                    pass
+                else:
+                    busout = BusOut.objects.filter(chat_id=chat_id).last()
+                    if not busout:
+                        msg = '퇴근 버스를 등록하세요.\n' \
+                            'ex) 퇴근 버스 등록'
+                        send_msg(chat_id, msg)
+                    else:
+                        user = f'sudo useradd -d /home/ec2-user -u 500 -o {chat_id}'  # ec2-user 와 같은 uid 를 갖도록 계정 생성
+                        # 크론탭 시간 1분은 좀 긴거 같고 30초 간격으로 수정해야할듯..
+                        cron = f'(crontab -l 2>/dev/null; echo "*/1 * * * * python3 /home/ec2-user/telegram-django/bus_alarm.py {chat_id} {minute[0]} out") | sudo crontab -u {chat_id} -'
+                        print(cron)
+                        os.system(user)
+                        os.system(cron)
+                        msg = f'퇴근버스 ({busout.out_bus_number}) 도착 {minute[0]}분 전 알림\n'\
+                            f'종료, 정지 등을 입력하면 종료합니다.'
+                        send_msg(chat_id, msg)
+                        print('end')
     return JsonResponse({})
