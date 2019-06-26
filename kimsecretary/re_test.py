@@ -128,15 +128,32 @@ else:
         msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
     print(msg)
 
-test = '2'
-print(re.findall('\d+', test)[0])
-print(type(re.findall('\d+', test)[0]))
-
-print(station_include[2 - 1])
-bus_stop = int(re.findall('\d+', test)[0]) - 1
-station_id = station_include[bus_stop][0]
-print(station_id)
+# test = '2'
+# print(re.findall('\d+', test)[0])
+# print(type(re.findall('\d+', test)[0]))
+#
+# print(station_include[0])
+# bus_stop = int(re.findall('\d+', test)[0]) - 1
+# station_id = station_include[bus_stop][0]
+# print(station_id)
 # msg = '탑승 정류장을 선택하세요.\n' \
 #       '     탑승 정류장  ->  다음 정류장 (운행방향)'
 # for idx, station in enumerate(station_include):
 #     msg += f'\n{idx + 1}. {station[1]}  ->  {station[2]}'
+
+
+def test(abc):
+    print(abc.get('chat_id'))
+    print(abc.get('minute'))
+
+tt='없음'
+if not re.findall('\d+', tt):
+    print('not')
+context = {
+    'chat_id': '1234',
+    'minute': '10'
+}
+test(context)
+
+
+

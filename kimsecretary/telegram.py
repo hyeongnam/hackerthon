@@ -1,14 +1,36 @@
-from flask import Flask, request
-import pprint
-import requests
-from decouple import config
 import os
 import re
+import pprint
+
+from flask import Flask, request
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+import requests
 from bs4 import BeautifulSoup as BS
+from decouple import config
+
 from send_message import send_msg
 from db_bus import bus_go_input
 
+
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@localhost/kimsecretary?charset=utf8'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = 'asdfasdfasdf'
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+class Bus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.String(80), nullable=False)
+    go_station_id = db.Column(db.String(120), nullable=False)
+    go_route_id = db.Column(db.String(120), nullable=False)
+    go_station_order = db.Column(db.String(120), nullable=False)
+
+    def __repr__(self):
+        return '<User %r>' % self.username
 
 token = config('TOKEN')
 api_url = f'https://api.telegram.org/bot{token}'
